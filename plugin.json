@@ -1,0 +1,19 @@
+{
+  "id": "abyss-plugin-wallpaper",
+  "name": "动态壁纸引擎",
+  "version": "0.1.0",
+  "minHost": 1,
+  "minApp": "0.1.0",
+  "category": "desktop",
+  "summary": "WallpaperService 引擎：与主壳液态玻璃同源视觉的动态壁纸工坊。",
+  "icon": "🖼",
+  "permissions": [],
+  "entry": "com.abyss.tools.plugin.wallpaper.WallpaperPlugin",
+  "repo": "Ultra-Guru/abyss-plugin-wallpaper",
+  "patchChannel": "https://raw.githubusercontent.com/Ultra-Guru/abyss-plugin-wallpaper/main/patches/index.json",
+  "roadmap": [
+    "v0.2 WallpaperService 骨架",
+    "v0.3 玻璃材质壁纸",
+    "v0.4 壁纸工坊市场"
+  ]
+}
