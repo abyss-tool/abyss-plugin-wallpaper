@@ -32,7 +32,8 @@ def die(msg: str) -> None:
     sys.exit(1)
 
 
-def api(method: str, url: str, body: dict | None = None, raw: bytes | None = None) -> dict:
+def api(method: str, url: str, body: dict | None = None, raw: bytes | None = None,
+        not_found_ok: bool = False, retries: int = 4) -> dict:
     data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
     req = urllib.request.Request(url, method=method, data=data)
     req.add_header("Authorization", f"Bearer {TOKEN}")
@@ -42,19 +43,21 @@ def api(method: str, url: str, body: dict | None = None, raw: bytes | None = Non
         req.add_header("Content-Type", "application/octet-stream")
     elif data is not None:
         req.add_header("Content-Type", "application/json")
-    for attempt in range(4):
+    for attempt in range(retries):
         try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 payload = resp.read()
                 return json.loads(payload.decode()) if payload else {}
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors="replace")
-            if e.code in (409, 422) and attempt < 3:
+            if e.code == 404 and not_found_ok:
+                return {}
+            if e.code in (409, 422) and attempt < retries - 1:
                 time.sleep(1.5 * (attempt + 1))
                 continue
             die(f"GitHub API {method} {url} → HTTP {e.code}\n{detail[:500]}")
         except urllib.error.URLError as e:
-            if attempt < 3:
+            if attempt < retries - 1:
                 time.sleep(2 * (attempt + 1))
                 continue
             die(f"GitHub API {method} {url} → 网络错误 {e.reason}")
@@ -87,8 +90,8 @@ def main() -> None:
     asset_name = meta["assetName"]
     print(f"[publish-patch] {pid} {frm} → {to} · {repo}")
 
-    # ── 1. Release（幂等）──────────────────────────────────────────────
-    release = api("GET", f"{API}/repos/{repo}/releases/tags/{tag}")
+    # ── 1. Release（幂等；tag 未发布时 404 → 走创建分支）───────────────
+    release = api("GET", f"{API}/repos/{repo}/releases/tags/{tag}", not_found_ok=True)
     if "id" in release:
         release_id = release["id"]
         print(f"[publish-patch] 复用既有 Release {tag}（id={release_id}）")
