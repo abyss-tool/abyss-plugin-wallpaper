@@ -1,0 +1,77 @@
+name: Patch Release
+
+# 插件数据补丁发布流水线（abyss-patch-v1 全链路）：
+#   make_patch.py 打包（新 manifest + changelog 载荷）→
+#   publish_patch.py 创建 v* Release + 上传 zip 资产 + 滚动补丁通道 →
+#   validate_plugin.py 门禁（三处一致性）→ 提交升版后的仓库事实源。
+#
+# 宿主侧消费：插件详情页「下载并应用补丁」从 patches/index.json 取该条目
+# （下载 → SHA-256 校验 → 备份 → 应用 → 失败自动回滚）。
+# 索引侧联动：Abyss-Plugins 每日聚合（或手动 Sync Index）自动把新版本
+# 汇入 plugins.json。
+#
+# 用法：Actions → Patch Release → Run workflow → 填目标版本（如 0.1.1）
+# 与变更要点（多条用 ; 分隔）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      to_version:
+        description: '目标版本（SemVer，如 0.1.1；须大于当前版本）'
+        required: true
+      notes:
+        description: '变更要点（多条用英文分号 ; 分隔）'
+        required: true
+
+concurrency:
+  group: patch-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    name: Pack & Publish Patch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Pack data patch (abyss-patch-v1)
+        run: |
+          NOTES_ARGS=""
+          IFS=';' read -ra NOTES <<< "${{ inputs.notes }}"
+          for n in "${NOTES[@]}"; do
+            [ -n "$n" ] && NOTES_ARGS="$NOTES_ARGS --notes \"$n\""
+          done
+          eval "python3 tools/make_patch.py --to '${{ inputs.to_version }}' $NOTES_ARGS"
+
+      - name: Publish release & roll patch channel
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          META=$(ls patches/data/*.meta.json | sort | tail -1)
+          python3 tools/publish_patch.py --meta "$META"
+
+      - name: Validate manifests (three-way consistency)
+        run: python3 tools/validate_plugin.py
+
+      - name: Commit bumped sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugin.json CHANGELOG.md patches/index.json
+          if git diff --cached --quiet; then
+            echo "[patch-release] 仓库事实源无变化（异常 —— 打包应已升版）"
+            exit 1
+          fi
+          git commit -m "chore(release): v${{ inputs.to_version }} —— 补丁通道滚动 + manifest 升版 [skip ci]"
+          git push
+          echo "[patch-release] ✓ v${{ inputs.to_version }} 发布完成"
