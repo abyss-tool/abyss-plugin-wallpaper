@@ -1,3 +1,14 @@
+> [!IMPORTANT]
+> **本仓库已并入深渊工具主壳（v0.2.0 内置化重构，仓库随即可归档）**
+>
+> 动态壁纸引擎（WallpaperService 壁纸工坊） 属于轻量能力，按「小功能内置，大功能插件化」的分界纪律，
+> 已改为直接实现进主仓库 [abyss-tool/Abyss-Tools](https://github.com/abyss-tool/Abyss-Tools)
+> （`ToolStatus.BUILT_IN`），随 App 版本更新获得 —— 不再需要安装本插件。
+> 主壳内的入口：导航 → 对应分类 → 动态壁纸引擎（内置说明卡）。
+>
+> 本仓库保留为历史存档（只读）：补丁通道与 manifest 仍可访问，但不再
+> 发布新版本。深渊工具 v0.2.0 及以上版本的用户请直接更新主壳。
+
 <div align="center">
 
 # 🖼 动态壁纸引擎
